@@ -2,6 +2,17 @@
   "framework": "vite",
   "buildCommand": "vite build",
   "outputDirectory": "dist",
-  "rewrites": [{ "source": "/api/(.*)", "destination": "/api" }],
-  "functions": { "api/index.ts": { "maxDuration": 60, "includeFiles": "public/assets/audio/**" } }
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api"
+    }
+  ],
+  "functions": {
+    "api/index.ts": {
+      "maxDuration": 60,
+      "includeFiles": "public/assets/audio/**"
+    }
+  },
+  "installCommand": "npm install --legacy-peer-deps"
 }
