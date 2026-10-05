@@ -16,6 +16,8 @@ import {
   Check,
   ArrowRight,
   Home,
+  Eye,
+  Camera,
 } from 'lucide-react';
 import { CEFRLevel, LearnerProfile } from '../types';
 import { BrandLogo } from './BrandLogo';
@@ -45,6 +47,10 @@ interface HeaderProps {
   isSessionActive: boolean;
   activeView: 'dashboard' | 'conversation';
   onSwitchView: (view: 'dashboard' | 'conversation') => void;
+  onPlayGreetingVoice?: () => void;
+  isGreetingPlaying?: boolean;
+  onOpenMirror?: () => void;
+  onTestSound?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -72,6 +78,10 @@ export const Header: React.FC<HeaderProps> = ({
   isSessionActive,
   activeView,
   onSwitchView,
+  onPlayGreetingVoice,
+  isGreetingPlaying = false,
+  onOpenMirror,
+  onTestSound,
 }) => {
   const [isSpeakMenuOpen, setIsSpeakMenuOpen] = useState(false);
   const [isReadMenuOpen, setIsReadMenuOpen] = useState(false);
@@ -119,7 +129,7 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-30 shadow-md">
       <div className="max-w-7xl mx-auto px-4 py-2 sm:px-6">
         <div className="flex items-center justify-between gap-3">
-          {/* Brand Logo & Master Nuri Designation (Clicking returns to Dashboard) */}
+          {/* Brand Logo & Family Turan Designation (Clicking returns to Dashboard) */}
           <div className="flex items-center gap-3 shrink-0">
             <button
               onClick={() => {
@@ -132,10 +142,25 @@ export const Header: React.FC<HeaderProps> = ({
               <BrandLogo size="md" />
             </button>
 
-            {/* Master Nuri Learner Designation (Dignified & Editorial, Zero AI Slop) */}
-            <div className="hidden lg:flex items-center gap-2 pl-3 border-l border-slate-800 text-xs">
-              <span className="text-slate-400 font-normal">Learner:</span>
-              <span className="font-serif font-semibold text-amber-200/90 tracking-tight">Master Nuri</span>
+            {/* Family Turan Learner Designation */}
+            <div className="flex items-center gap-1.5 sm:gap-2 pl-2 sm:pl-3 border-l border-slate-800 text-[11px] sm:text-xs">
+              <span className="hidden sm:inline text-slate-400 font-normal">Welcome:</span>
+              <span className="font-serif font-semibold text-amber-200 tracking-tight flex items-center gap-1">
+                Family Turan 👋
+              </span>
+              {onPlayGreetingVoice && (
+                <button
+                  onClick={onPlayGreetingVoice}
+                  className={`p-1 rounded-md transition-all cursor-pointer ${
+                    isGreetingPlaying
+                      ? 'bg-amber-400 text-slate-950 animate-pulse ring-1 ring-amber-300'
+                      : 'hover:bg-slate-800 text-amber-300 hover:text-white'
+                  }`}
+                  title="Hello Family Turan laut abspielen"
+                >
+                  <Volume2 className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           </div>
 
@@ -423,6 +448,30 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Action Toolbar */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Pronunciation Mirror (Sehen) */}
+            {onOpenMirror && (
+              <button
+                onClick={onOpenMirror}
+                title="Aussprache-Spiegel (Sehen) – Öffnet Webcam für Mund- & Zungenstellung"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 transition-colors cursor-pointer"
+              >
+                <Eye className="w-3.5 h-3.5 text-indigo-400" />
+                <span className="hidden xl:inline">Spiegel (Sehen)</span>
+              </button>
+            )}
+
+            {/* Sound Check / Ton-Test (Hören) */}
+            {onTestSound && (
+              <button
+                onClick={onTestSound}
+                title="Ton-Test (Hören) – Lautsprecher testen & Begrüßung laut hören"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 transition-colors cursor-pointer"
+              >
+                <Volume2 className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="hidden xl:inline">Ton-Test (Hören)</span>
+              </button>
+            )}
+
             {/* Pronunciation Lab Button */}
             <button
               onClick={onOpenSoundLab}

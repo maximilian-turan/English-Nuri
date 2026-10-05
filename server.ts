@@ -1,12 +1,28 @@
-import express, { Request, Response } from 'express';
+import express, { type Request, type Response } from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { GoogleGenAI, Type } from '@google/genai';
 
 dotenv.config();
 
 const app = express();
 app.use(express.json({ limit: '20mb' }));
+
+// Serve static assets directly from public directory (images, audio, icons)
+app.use('/assets', express.static(path.resolve('public/assets')));
+app.use(express.static(path.resolve('public')));
+
+// Dedicated greeting audio endpoint for 100% reliable direct audio streaming
+app.get('/api/audio/greeting', (_req: Request, res: Response) => {
+  const audioPath = path.resolve('public/assets/audio/greeting_family_turan.wav');
+  if (fs.existsSync(audioPath)) {
+    res.setHeader('Content-Type', 'audio/wav');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    return fs.createReadStream(audioPath).pipe(res);
+  }
+  return res.status(404).json({ error: 'Greeting audio not found' });
+});
 
 const apiKey = process.env.GEMINI_API_KEY;
 if (!apiKey) {
@@ -69,12 +85,12 @@ app.post('/api/coach/chat', async (req: Request, res: Response) => {
       isGermanRequested = false,
     }: ChatRequest = req.body;
 
-    const systemInstruction = `You are an expert AI English Speaking and Pronunciation Coach named "SpeakWise Coach".
-Your learner is Master Nuri. Always address them respectfully and warmly as "Master Nuri".
-Your primary goal is to help Master Nuri improve their spoken English, pronunciation, fluency, listening comprehension and confidence.
+    const systemInstruction = `You are an expert AI English Speaking and Pronunciation Coach named "NextLumen Coach".
+Your learners are Family Turan (young learners aged 10-15 years). Always address them respectfully, encouragingly, and warmly as "Family Turan" (or the young speaker).
+Your primary goal is to help them improve their spoken English, pronunciation, fluency, listening comprehension, school English, and speaking confidence.
 
 LEARNER PROFILE:
-- The learner is Master Nuri. Master Nuri understands written English approx at B1 level, but speaking and pronunciation are significantly weaker (currently close to beginner level ${currentLevel}).
+- The learners are Family Turan (kids & teens aged 10 to 15 years old).
 - Current Skill Levels: Speaking: ${learnerProfile?.speaking || 'A1'}, Pronunciation: ${learnerProfile?.pronunciation || 'A1'}, Grammar: ${learnerProfile?.grammar || 'A2'}, Vocabulary: ${learnerProfile?.vocabulary || 'B1'}, Listening: ${learnerProfile?.listening || 'A2'}, Reading: ${learnerProfile?.reading || 'B1'}.
 - Target practice mode: ${mode}
 - Topic: ${topic}
@@ -84,7 +100,7 @@ LEARNER PROFILE:
 
 CORE COACH PRINCIPLES:
 1. THE LEARNER MUST DO 70-80% OF THE SPEAKING. You do 20-30%. Keep your responses SHORT, encouraging, and clear.
-2. Ask ONE short, clear question at a time. Encourage verbal answers. Prefer: "Where did you go yesterday, Master Nuri?" over long preambles.
+2. Ask ONE short, clear, friendly question at a time. Encourage verbal answers. Use topics engaging for 10-15 year olds (school, friends, gaming, sports, family, hobbies, pets, movies). Prefer: "What's your favorite subject in school?" or "What do you like to do on the weekend?" over long preambles.
 3. Keep your own language simple, natural, learner-friendly, matching level ${currentLevel}.
 4. PRONUNCIATION IS HIGHEST PRIORITY. Pay special attention to:
    - TH sounds (voiceless /θ/ vs voiced /ð/)

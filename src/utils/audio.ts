@@ -26,9 +26,34 @@ class SpeechManager {
   private currentAudioElement: HTMLAudioElement | null = null;
   private playbackCounter = 0;
   private currentAbortController: AbortController | null = null;
+  private audioEngine: 'browser' | 'gemini' = 'browser'; // 100% OHNE API DEFAULT
+  private cachedVoices: SpeechSynthesisVoice[] = [];
 
   constructor() {
     this.initRecognition();
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      this.populateVoices();
+      if (typeof window.speechSynthesis.onvoiceschanged !== 'undefined') {
+        window.speechSynthesis.onvoiceschanged = () => this.populateVoices();
+      }
+    }
+  }
+
+  private populateVoices() {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+    try {
+      this.cachedVoices = window.speechSynthesis.getVoices();
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  public getAudioEngine(): 'browser' | 'gemini' {
+    return this.audioEngine;
+  }
+
+  public setAudioEngine(engine: 'browser' | 'gemini') {
+    this.audioEngine = engine;
   }
 
   private initRecognition() {
@@ -201,7 +226,64 @@ class SpeechManager {
     }
   }
 
-  // TTS PLAYBACK WITH GEMINI TTS AND WEBSPEECH FALLBACK
+  // PLAY PRE-RECORDED PRISTINE GREETING FOR FAMILY TURAN
+  public async playGreeting(
+    onStart?: () => void,
+    onEnd?: () => void
+  ): Promise<boolean> {
+    this.stopSpeaking();
+    const currentPlaybackId = ++this.playbackCounter;
+
+    // First try the native high-definition audio asset
+    try {
+      const success = await this.playAudioFromUrl(
+        '/assets/audio/greeting_family_turan.wav',
+        currentPlaybackId,
+        onStart,
+        onEnd
+      );
+      if (success) return true;
+    } catch (e) {
+      console.warn('Native wav playback not allowed yet, trying WebSpeech...', e);
+    }
+
+    // Fallback: Web Speech Synthesis
+    return this.playBrowserTTS(
+      'Hello Family Turan! Welcome to NextLumen English Academy.',
+      'normal',
+      onStart,
+      onEnd
+    );
+  }
+
+  // SOUND CHECK TONE (100% OFFLINE WEB AUDIO OSCILLATOR)
+  public playSoundCheckTone(): void {
+    if (typeof window === 'undefined') return;
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15); // A5
+
+      gain.gain.setValueAtTime(0.2, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start();
+      osc.stop(ctx.currentTime + 0.36);
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  // TTS PLAYBACK WITH ZERO-API BROWSER SPEECH SYNTHESIS AS PRIMARY DEFAULT
   public async playCoachSpeech(
     text: string,
     options: {
@@ -210,23 +292,35 @@ class SpeechManager {
       onStart?: () => void;
       onEnd?: () => void;
     } = {}
-  ): Promise<void> {
+  ): Promise<boolean> {
     const { speed = 'normal', voice = 'Kore', onStart, onEnd } = options;
     const cleanText = text.replace(/[*_#`]/g, '').trim();
-    if (!cleanText) return;
+    if (!cleanText) return false;
 
     // Immediately stop any currently playing or pending audio
     this.stopSpeaking();
 
-    // Assign a unique playback ID for this specific call
+    // Check if this is the standard Family Turan greeting
+    if (cleanText.toLowerCase().includes('hello family turan')) {
+      const success = await this.playGreeting(onStart, onEnd);
+      if (success) return true;
+    }
+
+    // 1. DEFAULT OHNE API: Web Speech Synthesis (Sofortige Audio-Wiedergabe ohne Server/API-Anfrage)
+    if (this.audioEngine === 'browser') {
+      const browserSuccess = await this.playBrowserTTS(cleanText, speed, onStart, onEnd);
+      if (browserSuccess) return true;
+      // If browser TTS failed, gracefully fall through to cloud TTS fallback!
+    }
+
+    // 2. SERVER AUDIO / CLOUD API FALLBACK
     const currentPlaybackId = ++this.playbackCounter;
     this.currentAbortController = new AbortController();
 
-    // Check memory cache
     const cacheKey = `${voice}_${speed}_${cleanText}`;
     if (this.audioCache.has(cacheKey)) {
       const cachedDataUrl = this.audioCache.get(cacheKey)!;
-      if (this.playbackCounter !== currentPlaybackId) return;
+      if (this.playbackCounter !== currentPlaybackId) return false;
       return this.playAudioFromUrl(cachedDataUrl, currentPlaybackId, onStart, onEnd);
     }
 
@@ -238,15 +332,11 @@ class SpeechManager {
         signal: this.currentAbortController.signal,
       });
 
-      // If another playback was requested in the meantime, discard this one!
-      if (this.playbackCounter !== currentPlaybackId) return;
-
-      if (!res.ok) {
-        throw new Error(`TTS server responded with ${res.status}`);
-      }
+      if (this.playbackCounter !== currentPlaybackId) return false;
+      if (!res.ok) throw new Error(`TTS server responded with ${res.status}`);
 
       const data = await res.json();
-      if (this.playbackCounter !== currentPlaybackId) return;
+      if (this.playbackCounter !== currentPlaybackId) return false;
 
       if (data.audioBase64) {
         const audioUrl = `data:audio/wav;base64,${data.audioBase64}`;
@@ -257,10 +347,10 @@ class SpeechManager {
       }
     } catch (err: any) {
       if (err.name === 'AbortError' || this.playbackCounter !== currentPlaybackId) {
-        return; // aborted intentionally
+        return false;
       }
-      console.warn('Gemini TTS failed or unavailable, falling back to Web Speech Synthesis:', err);
-      return this.playBrowserTTS(cleanText, speed, onStart, onEnd);
+      console.warn('Audio playback fallback error:', err);
+      return false;
     }
   }
 
@@ -269,11 +359,11 @@ class SpeechManager {
     playbackId: number,
     onStart?: () => void,
     onEnd?: () => void
-  ): Promise<void> {
-    return new Promise((resolve) => {
+  ): Promise<boolean> {
+    return new Promise((resolve, reject) => {
       if (this.playbackCounter !== playbackId) {
         onEnd?.();
-        return resolve();
+        return resolve(false);
       }
 
       const audio = new Audio(url);
@@ -285,14 +375,14 @@ class SpeechManager {
           this.currentAudioElement = null;
         }
         onEnd?.();
-        resolve();
+        resolve(true);
       };
-      audio.onerror = () => {
+      audio.onerror = (e) => {
         if (this.currentAudioElement === audio) {
           this.currentAudioElement = null;
         }
         onEnd?.();
-        resolve();
+        reject(e);
       };
 
       audio.play().catch((e) => {
@@ -301,7 +391,7 @@ class SpeechManager {
           this.currentAudioElement = null;
         }
         onEnd?.();
-        resolve();
+        reject(e);
       });
     });
   }
@@ -311,37 +401,74 @@ class SpeechManager {
     speed: 'normal' | 'slow' = 'normal',
     onStart?: () => void,
     onEnd?: () => void
-  ): Promise<void> {
-    return new Promise((resolve) => {
+  ): Promise<boolean> {
+    return new Promise((resolve, reject) => {
       if (typeof window === 'undefined' || !window.speechSynthesis) {
         onEnd?.();
-        return resolve();
+        return resolve(false);
       }
 
-      window.speechSynthesis.cancel();
+      try {
+        // Unlock / resume if paused by browser
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+        window.speechSynthesis.cancel();
+      } catch (e) {
+        // ignore
+      }
+
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'en-US';
-      utterance.rate = speed === 'slow' ? 0.75 : 0.95;
+      utterance.rate = speed === 'slow' ? 0.78 : 0.95;
       utterance.pitch = 1.0;
 
       // Find best English voice if available
-      const voices = window.speechSynthesis.getVoices();
+      const voices =
+        this.cachedVoices.length > 0 ? this.cachedVoices : window.speechSynthesis.getVoices();
+
       const enVoice =
-        voices.find((v) => v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Samantha') || v.name.includes('Daniel'))) ||
+        voices.find(
+          (v) =>
+            v.lang.startsWith('en') &&
+            (v.name.includes('Google') ||
+              v.name.includes('Natural') ||
+              v.name.includes('Samantha') ||
+              v.name.includes('Karen') ||
+              v.name.includes('Daniel') ||
+              v.name.includes('Victoria') ||
+              v.name.includes('Serena') ||
+              v.name.includes('Alex'))
+        ) ||
+        voices.find((v) => v.lang.startsWith('en-US')) ||
         voices.find((v) => v.lang.startsWith('en'));
+
       if (enVoice) utterance.voice = enVoice;
+
+      // Prevent Chrome GC bug by referencing utterance globally
+      (window as any).__activeSpeechUtterance = utterance;
 
       utterance.onstart = () => onStart?.();
       utterance.onend = () => {
+        (window as any).__activeSpeechUtterance = null;
         onEnd?.();
-        resolve();
+        resolve(true);
       };
-      utterance.onerror = () => {
+      utterance.onerror = (e) => {
+        (window as any).__activeSpeechUtterance = null;
+        console.warn('Speech synthesis utterance error:', e);
         onEnd?.();
-        resolve();
+        resolve(false);
       };
 
-      window.speechSynthesis.speak(utterance);
+      try {
+        window.speechSynthesis.speak(utterance);
+      } catch (err) {
+        (window as any).__activeSpeechUtterance = null;
+        console.warn('Speech synthesis speak error:', err);
+        onEnd?.();
+        resolve(false);
+      }
     });
   }
 

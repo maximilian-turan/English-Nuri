@@ -18,14 +18,18 @@ import { SessionReportModal } from './components/SessionReportModal';
 import { WordBankModal, SavedWord } from './components/WordBankModal';
 import { ReadingClassicsModal } from './components/ReadingClassicsModal';
 import { Top1000WordsModal } from './components/Top1000WordsModal';
+import { PronunciationMirrorModal } from './components/PronunciationMirrorModal';
 import { HomeDashboard } from './components/HomeDashboard';
 import { TOPICS_DATA } from './data/topics';
 import { audioService } from './utils/audio';
-import { Sparkles, MessageSquare, BookOpen, Volume2 } from 'lucide-react';
+import { generateLocalCoachResponse } from './utils/localCoach';
+import { Sparkles, MessageSquare, BookOpen, Volume2, Eye } from 'lucide-react';
 
-const INITIAL_FIRST_MESSAGE = `Hi Master Nuri! I'm your NextLumen English coach.
+const INITIAL_FIRST_MESSAGE = `Hello Family Turan! I'm your NextLumen English coach.
 
-Click the microphone to speak, or tell me: What would you like to practice today?`;
+Click the microphone to speak, explore the 1,000 most used English words, or read world classics!`;
+
+const GREETING_SPOKEN_TEXT = 'Hello Family Turan!';
 
 const DEFAULT_PROFILE: LearnerProfile = {
   reading: 'B1',
@@ -44,7 +48,7 @@ export default function App() {
       role: 'model',
       text: INITIAL_FIRST_MESSAGE,
       cleanSpeechText:
-        "Hi Master Nuri! I'm your English speaking coach. What would you like to practice today? Free conversation, Pronunciation, Daily English, Job and business, Travel, or a specific topic? And what level would you like? A1, A2, B1, B2, or C1?",
+        "Hello Family Turan! I'm your English coach. Click the microphone to speak, explore the 1,000 words, or choose what you would like to practice today!",
       timestamp: Date.now(),
     },
   ]);
@@ -63,6 +67,8 @@ export default function App() {
   const [autoPlayAudio, setAutoPlayAudio] = useState<boolean>(true);
   const [voiceSpeed, setVoiceSpeed] = useState<'normal' | 'slow'>('normal');
   const [germanAssistance, setGermanAssistance] = useState<boolean>(false);
+  const [isGreetingPlaying, setIsGreetingPlaying] = useState<boolean>(false);
+  const [showGreetingBanner, setShowGreetingBanner] = useState<boolean>(true);
 
   // Modals State
   const [isSkillsOpen, setIsSkillsOpen] = useState(false);
@@ -74,6 +80,7 @@ export default function App() {
   const [isClassicsOpen, setIsClassicsOpen] = useState(false);
   const [isVocabOpen, setIsVocabOpen] = useState(false);
   const [vocabTargetLevel, setVocabTargetLevel] = useState<CEFRLevel | 'ALL'>('ALL');
+  const [isMirrorOpen, setIsMirrorOpen] = useState(false);
 
   // Word Bank & Reports
   const [savedWords, setSavedWords] = useState<SavedWord[]>([]);
@@ -256,15 +263,46 @@ export default function App() {
         setIsFinalChallengeOpen(true);
       }
     } catch (err: any) {
-      console.error('Error contacting coach API:', err);
-      const fallbackMsg: Message = {
+      console.warn('Backend API unavailable, using client-side smart coach (Ohne API):', err);
+      const localResult = generateLocalCoachResponse({
+        message: userText,
+        history: messages.map((m) => ({ role: m.role, text: m.text })),
+        topic: currentTopic,
+        currentLevel,
+        mode: currentMode,
+        stage: sessionStage,
+        questionCount,
+        isDrillRepeat: wasInRepeat,
+        repeatTarget,
+        isGermanRequested: germanAssistance,
+      });
+
+      const coachWords = localResult.coachSpokenReply.trim().split(/\s+/).length;
+      setCoachWordCount((prev) => prev + coachWords);
+
+      const localModelMsg: Message = {
         id: `model-${Date.now()}`,
         role: 'model',
-        text: "I'm listening! Could you please repeat that? What do you think about our topic?",
-        cleanSpeechText: "I'm listening! Could you please repeat that? What do you think about our topic?",
+        text: localResult.coachSpokenReply,
+        cleanSpeechText: localResult.cleanSpeechText,
         timestamp: Date.now(),
+        correction: localResult.correction,
+        requiresRepeat: localResult.requiresRepeat,
+        repeatTarget: localResult.repeatTargetSentence,
       };
-      setMessages((prev) => [...prev, fallbackMsg]);
+
+      setMessages((prev) => [...prev, localModelMsg]);
+      setSessionStage(localResult.nextStage);
+      setStageProgressText(localResult.stageProgressText);
+      setQuestionCount((prev) => prev + 1);
+
+      if (localResult.correction?.pronunciationGuide?.problemWord) {
+        handleSaveWordToBank(
+          localResult.correction.pronunciationGuide.problemWord,
+          localResult.correction.pronunciationGuide.ipa || '',
+          localResult.correction.pronunciationGuide.howToProduce || ''
+        );
+      }
     } finally {
       setIsLoadingCoach(false);
     }
@@ -392,6 +430,78 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Manual replay of Family Turan greeting
+  const handlePlayGreeting = async () => {
+    audioService.playSoundCheckTone();
+    try {
+      setIsGreetingPlaying(true);
+      await audioService.playGreeting(
+        () => setIsGreetingPlaying(true),
+        () => setIsGreetingPlaying(false)
+      );
+    } catch (e) {
+      console.warn('Manual greeting audio error:', e);
+    } finally {
+      setIsGreetingPlaying(false);
+    }
+  };
+
+  // Sound check test handler
+  const handleTestSound = () => {
+    audioService.playSoundCheckTone();
+    handlePlayGreeting();
+  };
+
+  // Spoken greeting on app start: "Hello Family Turan!"
+  useEffect(() => {
+    let greetedSuccessfully = false;
+
+    const speakGreeting = async () => {
+      if (greetedSuccessfully) return;
+      try {
+        setIsGreetingPlaying(true);
+        const success = await audioService.playGreeting(
+          () => setIsGreetingPlaying(true),
+          () => setIsGreetingPlaying(false)
+        );
+        if (success) {
+          greetedSuccessfully = true;
+        } else {
+          setIsGreetingPlaying(false);
+        }
+      } catch (e) {
+        setIsGreetingPlaying(false);
+        console.warn('Autoplay restricted by browser policy; will greet on first user gesture.');
+      }
+    };
+
+    // Attempt direct audio playback immediately upon app start
+    speakGreeting();
+
+    // Fallback: If browser autoplay policy blocked the immediate call, trigger on first user interaction anywhere
+    const handleGesture = () => {
+      if (!greetedSuccessfully) {
+        audioService.playSoundCheckTone();
+        speakGreeting();
+      }
+      cleanup();
+    };
+
+    const cleanup = () => {
+      window.removeEventListener('pointerdown', handleGesture);
+      window.removeEventListener('touchstart', handleGesture);
+      window.removeEventListener('keydown', handleGesture);
+      window.removeEventListener('click', handleGesture);
+    };
+
+    window.addEventListener('pointerdown', handleGesture, { once: true });
+    window.addEventListener('touchstart', handleGesture, { once: true });
+    window.addEventListener('keydown', handleGesture, { once: true });
+    window.addEventListener('click', handleGesture, { once: true });
+
+    return cleanup;
+  }, []);
+
   const handleResetSession = () => {
     setMessages([
       {
@@ -399,7 +509,7 @@ export default function App() {
         role: 'model',
         text: INITIAL_FIRST_MESSAGE,
         cleanSpeechText:
-          "Hi Master Nuri! I'm your NextLumen English coach. Click the microphone to speak, or tell me what you would like to practice today.",
+          "Hello Family Turan! I'm your NextLumen English coach. Click the microphone to speak, or tell me what you would like to practice today.",
         timestamp: Date.now(),
       },
     ]);
@@ -467,7 +577,76 @@ export default function App() {
         onSwitchView={(view) => {
           setActiveView(view);
         }}
+        onPlayGreetingVoice={handlePlayGreeting}
+        isGreetingPlaying={isGreetingPlaying}
+        onOpenMirror={() => setIsMirrorOpen(true)}
+        onTestSound={handleTestSound}
       />
+
+      {/* App-Start Greeting Banner for Family Turan & Kids (10–15 Jahre) */}
+      {showGreetingBanner && (
+        <div
+          role="region"
+          aria-label="Begrüßung Family Turan"
+          className="bg-gradient-to-r from-amber-500/20 via-slate-900 to-indigo-950/40 border-b border-amber-500/30 px-4 py-2.5 sm:px-6 shadow-sm flex items-center justify-between gap-3 text-xs z-20 shrink-0"
+        >
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <span className="flex h-2.5 w-2.5 relative shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+            </span>
+            <span className="font-serif font-bold text-amber-200 text-sm">
+              Hello Family Turan! 👋
+            </span>
+            <span className="text-slate-300 hidden md:inline font-sans">
+              Willkommen bei NextLumen English Academy für Schüler & Jugendliche (10–15 Jahre).
+            </span>
+            <span className="hidden lg:inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+              ⚡ 100% Ohne API (Sehen & Hören lokal)
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={handlePlayGreeting}
+              className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
+                isGreetingPlaying
+                  ? 'bg-amber-400 text-slate-950 ring-2 ring-amber-300 animate-pulse'
+                  : 'bg-amber-500/30 hover:bg-amber-500/50 text-amber-200 border border-amber-500/40'
+              }`}
+              title="Hello Family Turan anhören"
+            >
+              <Volume2 className="w-3.5 h-3.5" />
+              <span>{isGreetingPlaying ? 'Spielt...' : 'Begrüßung hören 🔊'}</span>
+            </button>
+
+            <button
+              onClick={() => setIsMirrorOpen(true)}
+              className="px-2.5 py-1.5 rounded-lg font-bold bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/40 flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+              title="Aussprache-Mundspiegel (Sehen) öffnen"
+            >
+              <Eye className="w-3.5 h-3.5 text-indigo-400" />
+              <span className="hidden sm:inline">Spiegel (Sehen) 📹</span>
+            </button>
+
+            <button
+              onClick={handleTestSound}
+              className="px-2 py-1.5 rounded-lg text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-colors cursor-pointer text-[11px]"
+              title="Kurzen Ton-Check abspielen"
+            >
+              Ton-Test 🔔
+            </button>
+
+            <button
+              onClick={() => setShowGreetingBanner(false)}
+              className="text-slate-400 hover:text-slate-200 p-1 text-xs cursor-pointer ml-1"
+              title="Begrüßung schließen"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Area: Dashboard OR Conversation Canvas */}
       <main className="flex-1 flex flex-col overflow-hidden relative">
@@ -500,9 +679,9 @@ export default function App() {
             onTriggerFinalChallenge={() => {
               setIsFinalChallengeOpen(true);
             }}
-            onPlayGreetingVoice={() => {
-              audioService.playCoachSpeech(masterNuriGreeting, { voice: 'Kore', speed: voiceSpeed });
-            }}
+            onPlayGreetingVoice={handlePlayGreeting}
+            isGreetingPlaying={isGreetingPlaying}
+            onOpenMirror={() => setIsMirrorOpen(true)}
           />
         ) : (
           <ConversationView
@@ -635,6 +814,12 @@ export default function App() {
         onGoHome={handleGoHome}
         savedWords={savedWords}
         onSaveWord={handleSaveWordToBank}
+      />
+
+      {/* Aussprache-Mundspiegel (Sehen & Hören) Modal */}
+      <PronunciationMirrorModal
+        isOpen={isMirrorOpen}
+        onClose={() => setIsMirrorOpen(false)}
       />
     </div>
   );

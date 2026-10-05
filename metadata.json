@@ -1,6 +1,6 @@
 {
   "name": "NextLumen - AI English Academy",
-  "description": "NextLumen AI English Speaking & Pronunciation Academy — Professional executive spoken English coaching with real-time phonetic diagnostics and 50 world classics.",
+  "description": "NextLumen English Speaking Academy (english.nextlumen.ai) — 1.000 meistgenutzte Wörter, Aussprache-Training und 50 Weltklassiker für Schüler & Jugendliche (10–15 Jahre).",
   "requestFramePermissions": ["microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

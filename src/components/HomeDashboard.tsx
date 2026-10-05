@@ -14,8 +14,17 @@ import {
   Award,
   Shield,
   Layers,
+  Eye,
 } from 'lucide-react';
 import { CEFRLevel, LearnerProfile } from '../types';
+
+// Asset image imports (processed and hashed by Vite for production)
+import vocabImg from '../assets/images/vocab_1000_words_1791113160279.jpg';
+import speakImg from '../assets/images/nextlumen_speak_1791112093906.jpg';
+import readImg from '../assets/images/nextlumen_read_1791112103707.jpg';
+import soundImg from '../assets/images/nextlumen_sound_1791112115528.jpg';
+import skillsImg from '../assets/images/nextlumen_skills_1791112127131.jpg';
+import { ImageWithFallback } from './ImageWithFallback';
 
 interface HomeDashboardProps {
   currentLevel: CEFRLevel;
@@ -33,6 +42,8 @@ interface HomeDashboardProps {
   onOpenTopicPicker: () => void;
   onTriggerFinalChallenge: () => void;
   onPlayGreetingVoice?: () => void;
+  isGreetingPlaying?: boolean;
+  onOpenMirror?: () => void;
 }
 
 export const HomeDashboard: React.FC<HomeDashboardProps> = ({
@@ -51,148 +62,171 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
   onOpenTopicPicker,
   onTriggerFinalChallenge,
   onPlayGreetingVoice,
+  isGreetingPlaying = false,
+  onOpenMirror,
 }) => {
   const levels: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1'];
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-950 text-slate-100 p-4 sm:p-6 lg:p-8">
       <div className="max-w-6xl mx-auto space-y-6 sm:space-y-8">
-        {/* Welcome Executive Header */}
-        <div className="p-6 sm:p-8 rounded-2xl bg-slate-900 border border-slate-800/80 shadow-lg relative overflow-hidden">
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="space-y-3 max-w-2xl">
-              <div className="flex items-center gap-2 text-xs text-slate-400 flex-wrap">
-                <span className="font-semibold tracking-wider uppercase text-amber-400/90 text-[11px] font-sans">
-                  NextLumen Academy
+        {/* Top Welcome Bar for Family Turan & Kids (10–15 Jahre) */}
+        <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 border-2 border-amber-500/50 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-5 relative overflow-hidden">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/20">
+              <Sparkles className="w-6 h-6 text-slate-950" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-amber-400/20 text-amber-300 border border-amber-400/40 font-sans">
+                  NextLumen English Academy
+                </span>
+                <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1.5 font-sans">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  Coach Aktiv & Bereit
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-mono">
+                  ⚡ 100% Ohne API (Sehen & Hören lokal)
                 </span>
                 <span aria-hidden="true" className="text-slate-600">·</span>
-                <span>
-                  Aktive Stufe: <strong className="text-slate-200 font-mono font-medium">{currentLevel}</strong>
-                </span>
-                <span aria-hidden="true" className="text-slate-600">·</span>
-                <span>
-                  Sprechanteil: <strong className="text-emerald-400 font-mono font-medium">70–80% Ziel</strong>
+                <span className="text-xs text-slate-300 font-sans">
+                  Speziell für Schüler & Jugendliche (10–15 Jahre)
                 </span>
               </div>
-
-              <h1 className="font-serif text-3xl sm:text-4xl font-semibold text-slate-100 tracking-tight leading-tight">
-                Willkommen bei <span className="font-normal italic text-amber-400">NextLumen</span>, Master Nuri
+              <h1 className="font-serif text-2xl sm:text-3xl font-bold text-white tracking-tight flex items-center gap-2 flex-wrap">
+                <span>Hello <span className="text-amber-300 underline decoration-amber-400/60 decoration-wavy decoration-1">Family Turan</span>!</span>
+                <span className="text-2xl animate-bounce">👋</span>
               </h1>
-
-              <p className="text-sm text-slate-300 leading-relaxed font-sans">
-                Professionelles Englisch-Sprech- und Aussprache-Training auf Hochschulniveau. Wähle deinen Schwerpunkt für die heutige Session:
+              <p className="text-xs sm:text-sm text-slate-300 font-sans mt-1">
+                Herzlich willkommen! Trainiert flüssiges Sprechen, entdeckt die 1.000 wichtigsten Wörter und taucht in englische Weltklassiker ein.
               </p>
             </div>
+          </div>
 
-            <div className="flex flex-col sm:flex-row md:flex-col gap-3 shrink-0">
+          <div className="flex items-center gap-3 flex-wrap shrink-0">
+            {onPlayGreetingVoice && (
               <button
-                onClick={onStartSpeaking}
-                className="px-6 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
+                onClick={onPlayGreetingVoice}
+                className={`px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2.5 transition-all cursor-pointer shadow-md hover:scale-[1.02] active:scale-[0.98] ${
+                  isGreetingPlaying
+                    ? 'bg-amber-400 text-slate-950 ring-2 ring-amber-300 animate-pulse'
+                    : 'bg-amber-500 hover:bg-amber-400 text-slate-950'
+                }`}
+                title="Hello Family Turan laut abspielen"
               >
-                <Mic className="w-4 h-4" />
-                <span>Sprech-Session starten</span>
-                <ArrowRight className="w-4 h-4" />
+                <Volume2 className="w-4 h-4 text-slate-950" />
+                <span>{isGreetingPlaying ? 'Begrüßung spricht...' : '"Hello Family Turan" anhören 🔊'}</span>
               </button>
+            )}
 
-              {onPlayGreetingVoice && (
-                <button
-                  onClick={onPlayGreetingVoice}
-                  className="px-4 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-750 text-slate-300 hover:text-white border border-slate-700/80 font-medium text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
-                  title="Coach-Begrüßung anhören"
-                >
-                  <Volume2 className="w-4 h-4 text-amber-400" />
-                  <span>Begrüßung anhören</span>
-                </button>
-              )}
-            </div>
+            {onOpenMirror && (
+              <button
+                onClick={onOpenMirror}
+                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-indigo-300 hover:text-white border border-indigo-500/40 font-semibold text-xs sm:text-sm flex items-center gap-2 shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                title="Aussprache-Mundspiegel öffnen: Sieh deine Mundstellung live"
+              >
+                <Eye className="w-4 h-4 text-indigo-400" />
+                <span>Mund-Spiegel (Sehen) 📹</span>
+              </button>
+            )}
+
+            <button
+              onClick={onStartSpeaking}
+              className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs sm:text-sm flex items-center gap-2 shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <Mic className="w-4 h-4" />
+              <span>Mit dem Coach reden</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
 
-        {/* FEATURE HIGHLIGHT: 1.000 Meistgenutzte Englische Wörter (5 Stufen × 200 Wörter) */}
-        <div className="rounded-2xl bg-slate-900 border border-slate-800 hover:border-slate-700/80 overflow-hidden shadow-lg transition-all">
+        {/* 1. ERSTE STELLE / REIH: DIE 1.000 MEISTGENUTZTEN ENGLISCHEN WÖRTER (Speziell leserlich & freundlich für 10-15 Jährige) */}
+        <div className="rounded-2xl bg-slate-900 border-2 border-emerald-500/40 hover:border-emerald-500/60 overflow-hidden shadow-xl transition-all">
           <div className="grid grid-cols-1 lg:grid-cols-12 items-stretch">
-            {/* Image Column */}
-            <div className="lg:col-span-5 relative min-h-[220px] sm:min-h-[260px] overflow-hidden bg-slate-950">
-              <img
-                src="/src/assets/images/vocab_1000_words_1791113160279.jpg"
-                alt="1.000 meistgenutzte englische Wörter - NextLumen"
-                referrerPolicy="no-referrer"
+            {/* Bildspalte */}
+            <div className="lg:col-span-5 relative min-h-[220px] sm:min-h-[280px] overflow-hidden bg-slate-950">
+              <ImageWithFallback
+                src={vocabImg}
+                fallbackSrc="/assets/images/vocab_1000_words_1791113160279.jpg"
+                alt="1.000 meistgenutzte englische Wörter - NextLumen für Jugendliche"
+                theme="vocab"
                 className="w-full h-full object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t lg:bg-gradient-to-r from-slate-900 via-slate-900/40 to-transparent" />
               <div className="absolute top-4 left-4">
-                <span className="px-2.5 py-1 rounded bg-slate-950/85 text-emerald-300 border border-emerald-500/30 backdrop-blur-sm text-xs font-medium flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Wortschatz-Datenbank</span>
+                <span className="px-3 py-1 rounded-lg bg-emerald-600 text-white text-xs font-bold shadow-md flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-amber-300" />
+                  <span>★ Nummer 1 Wortschatz-Programm</span>
                 </span>
               </div>
-              <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between text-xs text-slate-300">
-                <span className="font-medium text-slate-200">5 Stufen · 200 Wörter je Stufe</span>
-                <span className="font-mono bg-slate-950/80 px-2 py-0.5 rounded border border-slate-800 text-emerald-400 font-semibold tabular-nums">
+              <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between text-xs text-slate-200">
+                <span className="font-semibold text-white">5 Stufen · Je 200 Wörter</span>
+                <span className="font-mono bg-slate-950/90 px-2.5 py-1 rounded-lg border border-slate-700 text-emerald-300 font-bold tabular-nums">
                   1.000 Wörter Total
                 </span>
               </div>
             </div>
 
-            {/* Info & Action Column */}
+            {/* Inhaltsspalte (Große Schrift, leserlich & freundlich für 10–15 Jahre) */}
             <div className="lg:col-span-7 p-6 sm:p-7 flex flex-col justify-between space-y-4">
-              <div className="space-y-2.5">
-                <div className="flex items-baseline gap-3 flex-wrap">
-                  <h2 className="font-serif text-2xl sm:text-3xl font-semibold text-slate-100 tracking-tight">
+              <div className="space-y-3">
+                <div className="flex items-baseline gap-2.5 flex-wrap">
+                  <h2 className="font-serif text-2xl sm:text-3xl font-bold text-white tracking-tight">
                     Die 1.000 meistgenutzten Wörter
                   </h2>
-                  <span className="text-xs text-amber-400/90 font-mono font-medium">
-                    A1–C1
+                  <span className="px-2 py-0.5 rounded text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                    A1 bis C1
                   </span>
                 </div>
 
-                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-sans">
-                  Strukturiert in 5 Schwierigkeitsstufen mit exakt 200 Wörtern pro Level. Jedes Wort verfügt über authentische IPA-Lautschrift, deutsche Übersetzung, Aussprache-Tipps und zwei vollständig vertonte Beispielsätze mit Mikrofon-Sofortfeedback.
+                <p className="text-sm sm:text-base text-slate-200 leading-relaxed font-sans">
+                  Mit diesen 1.000 Wörtern verstehst du über 85% aller englischen Gespräche, Videos und Schultexte! Jedes Wort hat deutsche Übersetzung, Lautschrift, Vertonung und Beispielsätze zum Nachsprechen.
                 </p>
 
-                {/* Level Quick Jump Buttons */}
-                <div className="pt-2">
-                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-2 font-sans">
-                    Direkt zu einem Level springen (je 200 Wörter):
+                {/* Stufen-Schnellwahl (Freundlich mit Icons für Schüler 10–15 Jahre) */}
+                <div className="pt-1">
+                  <span className="text-xs font-bold text-amber-300 uppercase tracking-wide block mb-2 font-sans">
+                    Wähle dein Level zum Üben:
                   </span>
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                     {[
-                      { lvl: 'A1', label: 'Anfänger', range: '#1–200', color: 'border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10' },
-                      { lvl: 'A2', label: 'Alltag', range: '#201–400', color: 'border-teal-500/30 text-teal-300 hover:bg-teal-500/10' },
-                      { lvl: 'B1', label: 'Beruf', range: '#401–600', color: 'border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/10' },
-                      { lvl: 'B2', label: 'Business', range: '#601–800', color: 'border-amber-500/30 text-amber-300 hover:bg-amber-500/10' },
-                      { lvl: 'C1', label: 'Rhetorik', range: '#801–1000', color: 'border-rose-500/30 text-rose-300 hover:bg-rose-500/10' },
+                      { lvl: 'A1', label: '🌟 Basis & Schule', range: '#1–200', color: 'border-emerald-500/50 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20' },
+                      { lvl: 'A2', label: '🚀 Alltag & Hobbys', range: '#201–400', color: 'border-teal-500/50 bg-teal-500/10 text-teal-200 hover:bg-teal-500/20' },
+                      { lvl: 'B1', label: '🎯 Storys & Schule', range: '#401–600', color: 'border-indigo-500/50 bg-indigo-500/10 text-indigo-200 hover:bg-indigo-500/20' },
+                      { lvl: 'B2', label: '💡 Wissen & Medien', range: '#601–800', color: 'border-amber-500/50 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20' },
+                      { lvl: 'C1', label: '🏆 Profi & Meister', range: '#801–1000', color: 'border-rose-500/50 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20' },
                     ].map((item) => (
                       <button
                         key={item.lvl}
                         onClick={() => onOpenVocab(item.lvl as CEFRLevel)}
-                        className={`p-2 rounded-xl bg-slate-950/40 border text-left transition-all cursor-pointer ${item.color}`}
+                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer shadow-sm ${item.color}`}
                       >
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between mb-0.5">
                           <span className="font-mono font-bold text-xs">{item.lvl}</span>
-                          <span className="text-[10px] opacity-75 font-mono tabular-nums">{item.range}</span>
+                          <span className="text-[10px] opacity-80 font-mono tabular-nums">{item.range}</span>
                         </div>
-                        <span className="text-[11px] text-slate-300 block truncate font-sans">{item.label}</span>
+                        <span className="text-xs font-semibold block truncate font-sans">{item.label}</span>
                       </button>
                     ))}
                   </div>
                 </div>
               </div>
 
-              {/* Main CTA Buttons */}
+              {/* Auffällige, kinderfreundliche Haupt-Buttons */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
                 <button
                   onClick={() => onOpenVocab('ALL')}
-                  className="flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
+                  className="flex-1 py-3.5 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30 transition-all cursor-pointer"
                 >
-                  <Sparkles className="w-4 h-4" />
+                  <Sparkles className="w-5 h-5 text-amber-300" />
                   <span>Alle 1.000 Wörter öffnen & trainieren</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
 
                 <button
                   onClick={() => onOpenVocab('A1')}
-                  className="py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-750 text-amber-300 hover:text-white border border-slate-700/80 font-medium text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  className="py-3.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-750 text-amber-300 hover:text-white border border-slate-700 font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
                 >
                   <Award className="w-4 h-4 text-amber-400" />
                   <span>Karteikarten-Drill</span>
@@ -208,10 +242,11 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           <div className="group rounded-2xl bg-slate-900 border border-slate-800 hover:border-slate-700 overflow-hidden shadow-lg transition-all flex flex-col justify-between">
             <div>
               <div className="relative h-48 sm:h-52 w-full overflow-hidden bg-slate-950">
-                <img
-                  src="/src/assets/images/nextlumen_speak_1791112093906.jpg"
+                <ImageWithFallback
+                  src={speakImg}
+                  fallbackSrc="/assets/images/nextlumen_speak_1791112093906.jpg"
                   alt="NextLumen Speak & Aussprechen - English Speaking Coaching"
-                  referrerPolicy="no-referrer"
+                  theme="speak"
                   className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent" />
@@ -231,10 +266,10 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
 
               <div className="p-5 sm:p-6 space-y-3">
                 <h2 className="font-serif text-xl sm:text-2xl font-semibold text-slate-100 tracking-tight">
-                  Speak & Aussprechen
+                  Speak & Sprach-Coach
                 </h2>
                 <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-sans">
-                  Interaktiver Dialog mit direktem phonetischen Feedback. Du übernimmst 70–80% der Redezeit und wirst bei Aussprache- oder Grammatikfehlern sofort gezielt korrigiert.
+                  Echtes Englisch frei sprechen! Der Coach unterhält sich mit dir über Hobbys, Schule und Abenteuer. Wenn du einen Fehler machst, hilft er dir sofort freundlich weiter.
                 </p>
 
                 {/* Level Quick Switcher inside Speak card */}
@@ -277,10 +312,11 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           <div className="group rounded-2xl bg-slate-900 border border-slate-800 hover:border-slate-700/80 overflow-hidden shadow-lg transition-all flex flex-col justify-between">
             <div>
               <div className="relative h-48 sm:h-52 w-full overflow-hidden bg-slate-950">
-                <img
-                  src="/src/assets/images/nextlumen_read_1791112103707.jpg"
+                <ImageWithFallback
+                  src={readImg}
+                  fallbackSrc="/assets/images/nextlumen_read_1791112103707.jpg"
                   alt="NextLumen Read & Weltklassiker - World Classics Library"
-                  referrerPolicy="no-referrer"
+                  theme="read"
                   className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent" />
@@ -303,7 +339,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                   Read & Weltklassiker
                 </h2>
                 <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-sans">
-                  50 ungekürzte Meisterwerke der Weltliteratur, aufgeteilt in A1 bis C1 (exakt 10 pro Stufe). Ausgestattet mit Audio-Vorleser, Schattenlesen-Mikrofon und Vokabelhilfen.
+                  50 spannende Geschichten auf Englisch: Peter Pan, Sherlock Holmes, Der Zauberer von Oz & mehr! Mit Vorlese-Audio und Schattenlesen-Mikrofon.
                 </p>
 
                 {/* Level Quick Jump inside Read card */}
@@ -342,10 +378,11 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           <div className="group rounded-2xl bg-slate-900 border border-slate-800 hover:border-slate-700/80 overflow-hidden shadow-lg transition-all flex flex-col justify-between">
             <div>
               <div className="relative h-48 sm:h-52 w-full overflow-hidden bg-slate-950">
-                <img
-                  src="/src/assets/images/nextlumen_sound_1791112115528.jpg"
+                <ImageWithFallback
+                  src={soundImg}
+                  fallbackSrc="/assets/images/nextlumen_sound_1791112115528.jpg"
                   alt="NextLumen Pronunciation Sound Lab"
-                  referrerPolicy="no-referrer"
+                  theme="sound"
                   className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent" />
@@ -368,7 +405,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                   Pronunciation Sound Lab
                 </h2>
                 <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-sans">
-                  Präzise Anleitung für englische Problem-Laute: Zungenposition zwischen den Zähnen für TH (/θ/, /ð/), Rachenform für American R, W vs V Unterscheidung und -ED Endungen.
+                  Einfache Tricks für knifflige englische Laute: Zunge für das 'TH' (/θ/, /ð/), Rachen für das American 'R', Unterschied zwischen 'W' und 'V' sowie '-ED' Endungen.
                 </p>
 
                 <div className="flex items-center gap-2 text-xs text-slate-400 pt-1 flex-wrap">
@@ -396,33 +433,34 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           <div className="group rounded-2xl bg-slate-900 border border-slate-800 hover:border-slate-700/80 overflow-hidden shadow-lg transition-all flex flex-col justify-between">
             <div>
               <div className="relative h-48 sm:h-52 w-full overflow-hidden bg-slate-950">
-                <img
-                  src="/src/assets/images/nextlumen_skills_1791112127131.jpg"
+                <ImageWithFallback
+                  src={skillsImg}
+                  fallbackSrc="/assets/images/nextlumen_skills_1791112127131.jpg"
                   alt="NextLumen Learner Skill Matrix"
-                  referrerPolicy="no-referrer"
+                  theme="skills"
                   className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent" />
                 <div className="absolute top-3.5 left-3.5">
                   <span className="px-2.5 py-1 rounded bg-slate-950/85 text-cyan-300 border border-cyan-500/30 backdrop-blur-sm text-xs font-medium flex items-center gap-1.5">
                     <BarChart3 className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>Kompetenz-Profil</span>
+                    <span>Lern-Fortschritt</span>
                   </span>
                 </div>
                 <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between text-xs text-slate-300">
-                  <span className="font-medium text-slate-200">CEFR Diagnostics</span>
+                  <span className="font-medium text-slate-200">6 Sprach-Fähigkeiten</span>
                   <span className="font-mono bg-slate-950/80 px-2 py-0.5 rounded border border-slate-800 text-cyan-300 font-semibold tabular-nums">
-                    6 Fertigkeiten
+                    CEFR Diagnostik
                   </span>
                 </div>
               </div>
 
               <div className="p-5 sm:p-6 space-y-3">
                 <h2 className="font-serif text-xl sm:text-2xl font-semibold text-slate-100 tracking-tight">
-                  Learner Skill Matrix
+                  Dein Englisch-Level & Fortschritt
                 </h2>
                 <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-sans">
-                  Deine Sprachfertigkeiten werden unabhängig bewertet. Leseverständnis (B1) und freies Sprechen (A1) werden separat getrackt und fließen in die Übungen ein.
+                  Sieh genau, wie du dich verbesserst: Freies Sprechen, Aussprache, Vokabeln und Textverständnis werden separat gemessen und gefördert.
                 </p>
 
                 <div className="grid grid-cols-3 gap-2 pt-1 text-xs">
